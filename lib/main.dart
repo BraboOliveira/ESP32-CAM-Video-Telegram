@@ -1,5 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:palchik/digital-persona.dart';
 
 void main() {
   runApp(MyApp());
@@ -44,24 +47,57 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
+  bool opened = false;
+  int compareResult;
   MethodChannel platform =
       const MethodChannel('samples.flutter.dev/digitalpersona');
-  String _device = 'unknown device';
-  Future<void> _getDeviceName() async {
-    String device;
-    try {
-      final String result = await platform.invokeMethod('getDeviceName');
-      device = 'Device name is $result ';
-    } on PlatformException catch (e) {
-      device = "Failed to get device name: '${e.message}'.";
-    }
-    setState(() {
-      _device = device;
-    });
+
+  Uint8List firstFinger;
+  Uint8List secondFinger;
+
+  @override
+  void dispose() {
+    super.dispose();
+    DigitalPersona.closeReader();
+  }
+
+  Future<void> _openReader() async {
+    await DigitalPersona.openReader();
+    opened = true;
+    _incrementCounter();
+    setState(() {});
+  }
+
+  Future<void> _checkRequestPermissions() async {
+    await DigitalPersona.checkOrRequestPermissions();
+    opened = true;
+    _incrementCounter();
+    setState(() {});
+  }
+
+  Future<void> _getFirstFinger() async {
+    firstFinger = await DigitalPersona.getFingerData();
+    print(firstFinger);
+    _incrementCounter();
+    setState(() {});
+  }
+
+  Future<void> _getSecondFinger() async {
+    secondFinger = await DigitalPersona.getFingerData();
+    print(secondFinger);
+    _incrementCounter();
+    setState(() {});
+  }
+
+  Future<void> _compareFingers() async {
+    compareResult =
+        await DigitalPersona.compareFingers(firstFinger, secondFinger);
+    print(compareResult.toString());
+    _incrementCounter();
+    setState(() {});
   }
 
   void _incrementCounter() {
-    _getDeviceName();
     setState(() {
       // This call to setState tells the Flutter framework that something has
       // changed in this State, which causes it to rerun the build method below
@@ -109,19 +145,37 @@ class _MyHomePageState extends State<MyHomePage> {
             const Text(
               'You have pushed the button this many times:',
             ),
-            Text(_device),
             Text(
               '$_counter',
               style: Theme.of(context).textTheme.headline4,
             ),
+            ElevatedButton(
+              onPressed: _checkRequestPermissions,
+              child: Text('Check or request permissions'),
+            ),
+            ElevatedButton(
+              onPressed: _openReader,
+              child: Text('Open reader'),
+            ),
+            ElevatedButton(
+              onPressed: _getFirstFinger,
+              child: Text('First finger'),
+            ),
+            if (firstFinger != null) Text('+'),
+            ElevatedButton(
+              onPressed: _getSecondFinger,
+              child: Text('Second finger'),
+            ),
+            if (secondFinger != null) Text('+'),
+            if (firstFinger != null && secondFinger != null)
+              ElevatedButton(
+                onPressed: _compareFingers,
+                child: Text('Compare fingers'),
+              ),
+            if (compareResult != null) Text(compareResult.toString())
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }

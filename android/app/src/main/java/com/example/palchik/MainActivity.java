@@ -1,68 +1,112 @@
 package com.example.palchik;
-import androidx.annotation.NonNull;
 import io.flutter.embedding.android.FlutterActivity;
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.plugin.common.MethodChannel;
-import android.content.ContextWrapper;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.os.BatteryManager;
-import android.os.Build.VERSION;
-import android.os.Build.VERSION_CODES;
-import android.os.Bundle;
+import com.digitalpersona.uareu.Fid;
+import com.digitalpersona.uareu.Fmd;
 import com.digitalpersona.uareu.Reader;
 import com.digitalpersona.uareu.ReaderCollection;
 import com.digitalpersona.uareu.UareUGlobal;
-import android.content.Context;
 import com.digitalpersona.uareu.UareUException;
+import com.digitalpersona.uareu.Reader.Priority;
+import com.digitalpersona.uareu.dpfpddusbhost.DPFPDDUsbHost;
+import com.digitalpersona.uareu.dpfpddusbhost.DPFPDDUsbException;
+import androidx.annotation.NonNull;
+import android.content.Intent;
+import android.content.Context;
+import android.app.PendingIntent;
+
+
+
 public class MainActivity extends FlutterActivity {
-    private static final String CHANNEL = "samples.flutter.dev/digitalpersona";
-    private String deviceName = "device not available.";
+    private static final String CHANNEL = "jsdaddy.dev/digitalpersona";
+    private static final String ACTION_USB_PERMISSION = "com.digitalpersona.uareu.dpfpddusbhost.USB_PERMISSION";
+
     @Override
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
         super.configureFlutterEngine(flutterEngine);
         new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), CHANNEL)
                 .setMethodCallHandler(
                         (call, result) -> {
-                            // Note: this method is invoked on the main thread.
-                            if (call.method.equals("getDeviceName")) {
+                            Context appContext = getApplicationContext();
+                            Reader reader;
+                            try {
+                                ReaderCollection  readers  = Globals.getInstance().getReaders(appContext);
+                                if (readers.isEmpty()) {
+                                    result.error("0", "No readers",  "");
+                                    return;
+                                }
+                                reader = readers.get(0);
+                            } catch (UareUException e) {
+                                result.error("1", "Can't get readers: " + e.getMessage(),  "");
+                                return;
+                            }
+
+                            if (call.method.equals("checkOrRequestPermissions")) {
                                 try {
-                                    Context applContext = getApplicationContext();
-                                    getReaders(applContext);
-//                                    if (readers.isEmpty()) {
-//                                    } else {
-//                                        deviceName = getReaders().get(0).GetDescription().name;
-//                                    }
+
+                                    PendingIntent mPermissionIntent;
+                                    mPermissionIntent = PendingIntent.getBroadcast(appContext, 0, new Intent(ACTION_USB_PERMISSION), 0);
+                                    boolean checkResult =  DPFPDDUsbHost.DPFPDDUsbCheckAndRequestPermissions(appContext, mPermissionIntent, reader.GetDescription().name);
+                                    result.success(checkResult);
+                                } catch (DPFPDDUsbException e) {
+                                    result.error("2",  "USB exception: " + e.getMessage(),  "");
+                                    return;
+                                }
+                            }
+
+                            if (call.method.equals("openReader")) {
+                                try {
+                                   reader.Open(Priority.EXCLUSIVE);
+                                } catch (UareUException e) {
+                                    result.error("3",  "Can't  open reader : " + e.getMessage(),  "");
+                                    return;
+                                }
+                            }
+
+                            if (call.method.equals("closeReader")) {
+                                try {
+                                    reader.Close();
+                                } catch (UareUException e) {
+                                    result.error("4",  "Can't  close reader : " + e.getMessage(),  "");
+                                    return;
+                                }
+                            }
+
+                            if (call.method.equals("compareFingers")) {
+                                try {
+                                    byte[] first = call.argument("firstFinger");
+                                    byte[] second = call.argument("secondFinger");
+                                    Fmd firstFinger = UareUGlobal.GetImporter().ImportFmd(first, Fmd.Format.ANSI_378_2004, Fmd.Format.ANSI_378_2004);
+                                    Fmd secondFinger = UareUGlobal.GetImporter().ImportFmd(second, Fmd.Format.ANSI_378_2004, Fmd.Format.ANSI_378_2004);
+                                    int compareResult = UareUGlobal.GetEngine().Compare(firstFinger, 0, secondFinger, 0);
+                                    result.success(compareResult);
+                                } catch (Exception e) {
+                                    result.error("5",  "Compare error : " + e.getMessage(),  "");
+                                }
+
+                            }
+                            if (call.method.equals("getFingerData")) {
+                                try {
+                                       int m_DPI = Globals.GetFirstDPI(reader);
+                                       Reader.CaptureResult  res = reader.Capture(Fid.Format.ANSI_381_2004, Globals.DefaultImageProcessing, m_DPI, 11111);
+                                       Fmd fmd = UareUGlobal.GetEngine().CreateFmd(res.image, Fmd.Format.ANSI_378_2004);
+                                       byte[] bytes = fmd.getData();
+                                       result.success(bytes);
+                                       reader.CancelCapture();
+
                                 } catch (Exception e)
                                 {
-//                                    result.success("device not available");
+                                    result.error("6",  "Capture error : " + e.getMessage(),  "");
                                 }
-//
-//                                if (deviceName == null) {
-//                                    result.success("device not available");
-//                                } else {
-//                                    result.success(deviceName);
-//                                }
-                                result.success("daw");
 
-                            } else {
-                                result.notImplemented();
+
                             }
+                                // TODO: NotImplemented
+                                // result.notImplemented();
+
                         }
                 );
-    }
-    public void getReaders(Context applContext) throws UareUException
-    {
-        try {
-            ReaderCollection m_collection;
-            m_collection = UareUGlobal.GetReaderCollection(applContext);
-            m_collection.GetReaders();
-        } catch (UareUException e1) {
-            // TODO Auto-generated catch block
-            return;
-        }
-//        ReaderCollection readers = UareUGlobal.GetReaderCollection(applContext);
-//        readers.GetReaders();
-//        return readers;
+
     }
 }
