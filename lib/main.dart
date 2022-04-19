@@ -1,5 +1,5 @@
 import 'dart:typed_data';
-
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:palchik/digital-persona.dart';
@@ -77,7 +77,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _getFirstFinger() async {
     firstFinger = await DigitalPersona.getFingerData();
+    String encoded = base64.encode(firstFinger);
     print(firstFinger);
+    print(encoded);
     _incrementCounter();
     setState(() {});
   }

@@ -17,7 +17,6 @@ import android.content.Context;
 import android.app.PendingIntent;
 
 
-
 public class MainActivity extends FlutterActivity {
     private static final String CHANNEL = "jsdaddy.dev/digitalpersona";
     private static final String ACTION_USB_PERMISSION = "com.digitalpersona.uareu.dpfpddusbhost.USB_PERMISSION";
@@ -92,6 +91,10 @@ public class MainActivity extends FlutterActivity {
                                        Reader.CaptureResult  res = reader.Capture(Fid.Format.ANSI_381_2004, Globals.DefaultImageProcessing, m_DPI, 11111);
                                        Fmd fmd = UareUGlobal.GetEngine().CreateFmd(res.image, Fmd.Format.ANSI_378_2004);
                                        byte[] bytes = fmd.getData();
+//                                       byte[] decoded = Base64.encodeToString(bytes, Base64.DEFAULT);
+//                                       String encodedText = Base64Utils.encodeToString(bytes);
+//                                       System.out.println(new String(decoded));
+                                        System.out.println("Teste teste");
                                        result.success(bytes);
                                        reader.CancelCapture();
 
